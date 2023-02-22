@@ -80,7 +80,7 @@ while True:
         result = "No markers detected"
 
     #Print only if results changes
-    if (result != prevResult):
+    if (result != prevResult and result != "No markers detected"):
         print(result)
     
     #Display
