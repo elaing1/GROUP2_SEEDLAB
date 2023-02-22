@@ -1,0 +1,73 @@
+#include <Encoder.h>
+#include "DualMC33926MotorShield.h"
+
+DualMC33926MotorShield md;
+
+int pinA = 3;
+int pinB = 13;
+
+int A;
+int B;
+
+double theta = 0;
+double count = 0;
+
+char input;
+
+Encoder wheel(pinA,pinB);
+
+void stopIfFault()
+{
+  if (md.getFault())
+  {
+    Serial.println("fault");
+    theta = 0;
+    wheel.write(0);
+  }
+}
+
+
+
+void setup() {
+  // put your setup code here, to run once:
+
+pinMode(4,OUTPUT);
+pinMode(7,OUTPUT);
+pinMode(8,OUTPUT);
+pinMode(9,OUTPUT);
+pinMode(10,OUTPUT);
+pinMode(12,INPUT);
+
+pinMode(pinA, INPUT_PULLUP);
+pinMode(pinB, INPUT_PULLUP);
+
+md.init();
+
+
+ Serial.begin(9600);
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+
+//reads and calculates the angular position
+count = wheel.read();
+theta = count/3210 * 2*PI;
+
+
+//Shows the value from 0-2PI
+if (abs(theta) > 6.28){
+  theta = 0;
+  wheel.write(0);
+}
+Serial.println(theta);
+
+//Sets the speed of the motor (-number = spins the right way)
+md.setM2Speed(50);
+stopIfFault();
+
+
+//voltage = 5 * PWM/255
+
+}
