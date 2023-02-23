@@ -1,0 +1,66 @@
+#include <Wire.h>
+#define SLAVE_ADDRESS 0x04
+//array of bytes for count to be sent to pi
+byte data[32] = {0};
+//array of ints for the receieved set theta
+int setquad[32] = {0};
+
+double setTheta = 0;
+//int count = 0;
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(13, OUTPUT);
+  Serial.begin(9600); // start serial for output
+  // initialize i2c as slave
+  Wire.begin(SLAVE_ADDRESS);
+  // declare the ledPin as an OUTPUT:
+  //pinMode(ledPin, OUTPUT);
+  // define callbacks for i2c communication
+  Wire.onReceive(receiveData);
+  Wire.onRequest(sendData);
+  Serial.println("Ready!");
+}
+
+void loop() {
+  //Read current position of wheel and bitshift to send to rpi
+  //Can use count or wheel.read() i believe (Note: I do not have the encoder library included). Im converting to angle on rpi
+  data[0] = ((wheel.read() >> 8) & 255); //bitshift to send high 8 bits
+  data[1] = (wheel.read() & 255); //send low 8 bits
+  //data[0] = ((count >> 8) & 255); //bitshift to send high 8 bits
+  //data[1] = (count & 255); //send low 8 bits
+  delay(10);
+}
+
+void receiveData(int intCount) {
+  // Read the data from the Raspberry Pi
+  int i=0;
+  while (Wire.available()) {
+    setquad[i] = Wire.read();
+    i++; 
+  } 
+  //chnages the quadrant read from the pi to the angle desired
+  if (setquad[1] == 1){
+    setTheta = 0;
+  }
+  // pi/2
+  if (setquad[1] == 2){
+    setTheta = 1.57;
+  }
+  // pi
+  if (setquad[1] == 3){
+    setTheta = 3.14;
+  }
+  // 3pi/2
+  if (setquad[1] == 4){
+    setTheta = 4.71;
+  }
+  //Serial.print(setTheta);
+}
+
+//sends the position back to the rpi
+void sendData(){
+  //Serial.println(data[0]);
+  //Serial.println(data[1]);
+  Wire.write(data, 2);
+}
