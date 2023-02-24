@@ -154,7 +154,7 @@ while (1){
   I=Ts*e;
 
   //calculating the PWM output
-  u = 50*Kp*e +Ki*I;
+  u = 100*Kp*e +Ki*I;
   //spinning motor
   spinMotor(u);
   //setting new times i guess
