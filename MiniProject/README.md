@@ -10,6 +10,7 @@
 
 ### Systems Integration:
 ##### Setup communication between the Raspberry Pi, Arduino and LCD
+##### Code is contained on Worked on System_Integration_UNO and System_Integration_RPI.py, and integrated in our final code. 
 
 ### Control Systems:
 ##### Create a simulation of your motor and design a controller for your motor
