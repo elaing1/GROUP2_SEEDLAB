@@ -5,14 +5,14 @@
 
 ## Organization
 
-#### Computer Vision:
+### Computer Vision:
 ##### Use Open CV to implement the Aruco Detection Scheme
 
-#### Systems Integration:
+### Systems Integration:
 ##### Setup communication between the Raspberry Pi, Arduino and LCD
 
-#### Control Systems:
+### Control Systems:
 ##### Create a simulation of your motor and design a controller for your motor
 
-#### Localizaiton:
+### Localizaiton:
 ##### Use a motor driver to spin a motor under control of the Arduino and use the arduino to read the rotary encoder on the motor
