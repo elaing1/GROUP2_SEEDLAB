@@ -24,16 +24,17 @@
 #define samplingRate 5
 #define fixedCycleTime 2350
 // motor 1 1600.0
-// motor 2 1670.0
-#define CPR 1460.0
-#define CPR2 1670.0
+// motor 2 1660.0
+#define CPR 1600.0
+#define CPR2 1600.0
 
 #define maxVolts 7.7
 //motor pins 10 8
 #define PWM 10
 #define DIR 8
 #define PWM2 9
-#define DIR2 12
+// original 12
+#define DIR2 7
 
 DualMC33926MotorShield md;
 Encoder motor1(pinA, pinB);
@@ -45,6 +46,8 @@ double position2 = 0.00;
 double velocity = 0.00;
 double velocity2 = 0.00;
 
+double forwardV = 0.00;
+double rotationalV = 0.00;
 
 uint32_t start_time, stop_time;
 
@@ -125,13 +128,25 @@ void loop() {
 
       turnValue = -motor1.read();
       turnValue2 = -motor2.read();
-      // radius of the wheel 71.91mm
+
       double position = double(turnValue) / CPR * 2 * 3.141592;
       double position2 = -double(turnValue2) / CPR2 * 2 * 3.141592;
 
       // Calculate velocity [radian / sec]
       double velocity = ((turnValue - pastTurnValue) / 10e-3) / CPR * 2 * 3.141592;
       double velocity2 = -((turnValue2 - pastTurnValue2) / 10e-3) / CPR2 * 2 * 3.141592;
+
+      // vector V
+      double sumV = velocity - velocity2;
+      // delta V
+      double differenceV = velocity - velocity2;
+      // radius of the wheel 71.91mm = 0.2359252 ft
+      // calculate the forward velocity for the robot
+      forwardV = 0.235952 * (velocity + velocity2) / 2;
+
+      // 10 11/16ths distance between the wheels
+      // 0.890625 ft
+      rotationalV = 0.235952 * (velocity - velocity2) / 0.890625;
 
       // Update past value
       pastTurnValue = turnValue;
@@ -154,6 +169,14 @@ void loop() {
       Serial.print("\t");
       Serial.print(motorVoltage2);
       Serial.print("\t");
+      Serial.print(forwardV);
+      Serial.print("\t");
+      Serial.print(rotationalV);
+      Serial.print("\t");
+      Serial.print(sumV);
+      Serial.print("\t");
+      Serial.print(differenceV);
+      Serial.print("\t");
       Serial.println(millis());
       motorVoltage = 0;
     }
@@ -169,8 +192,8 @@ void loop() {
         continue;
       }
     } else {
-      writeMotor(1, 100, CW);
-      writeMotor(2, 100, !(CW));
+      writeMotor(1, 127, CW);
+      writeMotor(2, 127, !(CW));
     }
   }
 }
