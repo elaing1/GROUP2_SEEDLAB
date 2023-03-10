@@ -5,11 +5,15 @@ DualMC33926MotorShield md;
 
 const double radius = .2395; //FEET
 
+const double DISTANCEHELPER = (10.5/12) * PI;
+
 double setDistance = 0; // FEET
 double setPhi = 0; //RAD
 
 double currentD = 0;
 double currentPhi = 0;
+
+
 
 
 //int count = 0;
@@ -57,7 +61,7 @@ double uPhi = 0;
 //Function to spin motors
 void spinRight(int PWM){
 
-  if (PWM > 0){
+  if (PWM >= 0){
     analogWrite(9,PWM);
     digitalWrite(8,0);
   }
@@ -69,7 +73,7 @@ void spinRight(int PWM){
 
 void spinLeft(int PWM){
 
-  if (PWM > 0){
+  if (PWM >= 0){
     analogWrite(10,PWM);
     digitalWrite(7,1);
   }
@@ -105,10 +109,10 @@ md.init();
 void loop() {
   // put your main code here, to run repeatedly:
 
-currentTime = millis();
+ currentTime = millis();
 
  setDistance = 5; // FEET
- setPhi = 0; //RAD
+ setPhi = 2*PI; //RAD
 
 
 
@@ -137,26 +141,34 @@ while (1){
     DP=0;
   }
   
-  uPhi = 255/5*(kpPhi * ePhi + kdPhi*DPhi);
-  uP =  255/5*(kpP * eP + kdPhi*DP);
+  uPhi = 255*(kpPhi * ePhi + kdPhi*DPhi);
+  uP =  255*(kpP * eP + kdPhi*DP);
 
 
-//  if (uP > 255){
-//    uP = 255;
-//  }
-//  if (uPhi > 255){
-//    uPhi = 255;
-//  }
-//  if (uP < -255){
-//    uP = -255;
-//  }
-//  if (uPhi < -255){
-//    uPhi = -255;
-//  }
+
+
+
+  if (uP > 255){
+    uP = 255;
+  }
+  if (uPhi > 255){
+    uPhi = 255;
+  }
+  if (uP < -255){
+    uP = -255;
+  }
+  if (uPhi < -255){
+    uPhi = -255;
+  }
+
+if (setDistance == 0 && setPhi != 0){
+  spinRight(-(uP-uPhi)/2);
+  spinLeft(-.8735*(uP+uPhi)/2);
+}else{
 
   spinRight((uP-uPhi)/2);
   spinLeft(.8735*(uP+uPhi)/2);
-
+}
   
 
   Serial.print(setPhi);
@@ -176,6 +188,8 @@ while (1){
   Serial.print(eP);
   Serial.print("\t");
   Serial.println(uP);
+
+  
   
 Ts = currentTime - Tc;
   Tc = currentTime;
