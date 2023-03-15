@@ -1,19 +1,23 @@
 #include "Encoder.h"
 #include "DualMC33926MotorShield.h"
+//Feedback loop values
+// 7
+#define kpR 6
+// 17
+#define kpPhi 20
+//
+#define maxVolts 7.8
+
 
 DualMC33926MotorShield md;
 
 const double radius = .2395;  //FEET
 
-const double DISTANCEHELPER = (10.5 / 12) / 2 * PI;
-
 double setDistance = 0;  // FEET
 double setPhi = 0;       //RAD
 
-double currentD = 0;
+double currentR = 0;
 double currentPhi = 0;
-
-
 
 
 //int count = 0;
@@ -33,55 +37,22 @@ Encoder wheel2(pin2A, pin2B);
 
 
 //Time
-int currentTime = 0;
+int startTime = 0;
 
 //Encoder values and theta
 int count1 = 0;
 int count2 = 0;
-double theta = 0;
 
-//Feedback loop values
-double kpP = 17.15668;
-double kdP = 0.673531006182646;
-double DP = 0;
-double e_pastP = 0;
-double Ts = 0;
-double Tc = currentTime;
-double eP = 0.0;
-double uP = 0;
 
-double kpPhi = 6.50202867560687;
-double kdPhi = 1.1968030832634;
-double DPhi = 0;
-double e_pastPhi = 0;
-double ePhi = 0;
-double uPhi = 0;
-bool angle = true;
 
+double Vrotational = 0;
+double Vdistance = 0;
+double Vleft = 0;
+double Vright = 0;
+double PWML = 0;
+double PWMR = 0;
+int i = 0;
 //Function to spin motors
-void spinRight(int PWM) {
-
-  if (PWM >= 0) {
-    analogWrite(9, PWM);
-    digitalWrite(8, 0);
-  }
-  if (PWM < 0) {
-    analogWrite(9, -PWM);
-    digitalWrite(8, 1);
-  }
-}
-
-void spinLeft(int PWM) {
-
-  if (PWM >= 0) {
-    analogWrite(10, PWM);
-    digitalWrite(7, 1);
-  }
-  if (PWM < 0) {
-    analogWrite(10, -PWM);
-    digitalWrite(7, 0);
-  }
-}
 
 void setup() {
   // put your setup code here, to run once:
@@ -104,100 +75,84 @@ void setup() {
   //initialize motor
   md.init();
 }
+// time
 
 void loop() {
   // put your main code here, to run repeatedly:
 
-  currentTime = millis();
-
-
-
-  setDistance = 2;  // FEET
-  setPhi =0;  //RAD
-
   while (1) {
+    if (i > 50) {
+      // fudge factor for distance + 0.18
+      setPhi = PI/2 + 0.19;
 
-    currentTime = millis();
-
-    count1 = -wheel2.read();
-    count2 = wheel1.read();
-    currentD = (double(count2) / 3210 + double(count1) / 3210) * PI * radius;
+    }
+    if (i > 255) {
+      setDistance = 5;
+      // for distance and angle
+    }
+    count1 = wheel1.read();
+    count2 = -wheel2.read();
+    currentR = -((double(count2) / 3210) + (double(count1) / 3210)) * PI * radius;
     currentPhi = radius * (-double(count2) / 3210 * 2 * PI + double(count1) / 3210 * 2 * PI) / ((10.5 / 12));
 
+    Vrotational = (setPhi - currentPhi) * kpPhi;
+    Vdistance = (setDistance - currentR) * kpR;
 
-    eP = setDistance - currentD;
+    Vright = Vdistance - Vrotational;
+    Vleft = Vdistance + Vrotational;
 
-    ePhi = setPhi - currentPhi;
+    PWML = (Vleft / maxVolts) * 255;
+    PWMR = (Vright / maxVolts) * 255;
 
-    if (Ts > 0) {
-      DPhi = (ePhi - e_pastPhi) / Ts;
-      e_pastPhi = ePhi;
 
-      DP = (eP - e_pastP) / Ts;
-      e_pastP = eP;
+    if (PWML > 200) {
+      PWML = 200;
+    } else if (PWML < -200) {
+      PWML = -200;
+    }
+
+    if (PWMR > 200) {
+      PWMR = 200 * 1.12;
+    } else if (PWMR < -200) {
+      PWMR = -200 * 1.12;
+    }
+
+    if (PWMR >= 0) {
+
+      analogWrite(9, PWMR);
+      digitalWrite(7, 1);
     } else {
-      DPhi = 0;
-      DP = 0;
+
+      analogWrite(9, -PWMR);
+      digitalWrite(7, 0);
     }
 
-    uPhi = 255 * (kpPhi * ePhi + kdPhi * DPhi);
-    uP = 255 * (kpP * eP + kdPhi * DP);
-
-    if (uP > 255) {
-      uP = 255;
-    }
-    if (uPhi > 255) {
-      uPhi = 255;
-    }
-    if (uP < -255) {
-      uP = -255;
-    }
-    if (uPhi < -255) {
-      uPhi = -255;
-    }
-
-    if (ePhi > 0.01) {
-      spinRight(-2.2 * (uP - uPhi) / 2);
-      spinLeft(-2.4 * (uP + uPhi) / 2);
-      //currentD = 0;
-      
-      DP = 0;
-    } else if (eP > 0.1) {
-      spinRight(0.84 * (uP - uPhi) / 2);
-      spinLeft(0.82 * (uP + uPhi) / 2);
-
+    if (PWML >= 0) {
+      analogWrite(10, PWML);
+      digitalWrite(8, 0);
     } else {
-      spinRight(0);
-      spinLeft(0);
-      eP = 0;
-      ePhi = 0;
-      currentD = setDistance;
-      currentPhi = setPhi;
-      DP = 0;
-      DPhi = 0;
+      analogWrite(10, -PWML);
+      digitalWrite(8, 1);
     }
 
-
-    Serial.print(setPhi);
+    delay(20);
+    Serial.print(currentR);
+    Serial.print("\t");
+    Serial.print(setDistance);
     Serial.print("\t");
     Serial.print(currentPhi);
     Serial.print("\t");
-    Serial.print(ePhi);
+    Serial.print(setPhi);
     Serial.print("\t");
-    Serial.print(uPhi);
+    Serial.print(PWML);
     Serial.print("\t");
-    Serial.print("\t");
+    Serial.println(PWMR);
 
-    Serial.print(setDistance);
-    Serial.print("\t");
-    Serial.print(currentD);
-    Serial.print("\t");
-    Serial.print(eP);
-    Serial.print("\t");
-    Serial.println(uP);
-
-
-    Ts = currentTime - Tc;
-    Tc = currentTime;
+    if (currentR != 0 && currentR == setDistance - 0.3) {
+      analogWrite(9, 0);
+      analogWrite(10, 0);
+      break;
+    }
+    i++;
   }
 }
