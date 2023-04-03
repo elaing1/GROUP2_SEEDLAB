@@ -5,9 +5,9 @@
 // 6
 #define kpR 6
 //20
-#define kpPhi 20
+#define kpPhi 25
 
-#define maxVolts 8.0
+#define maxVolts 7.9
 
 
 DualMC33926MotorShield md;
@@ -85,7 +85,15 @@ void setup() {
   //initialize motor
   md.init();
 }
-// time
+// finite state machine
+int state = 3;
+const int RECEIVE = 0;
+const int ANGLE = 1;
+const int DISTANCE = 2;
+const int IDLE = 3;
+
+
+// flags to communicate with the pi
 bool arucoDetected = false;
 bool sendData = false;
 void loop() {
@@ -94,21 +102,22 @@ void loop() {
     // aruco detected == true
     switch (state) {
       case (RECEIVE):
-        currentPhi = 0;
         currentR = 0;
-        delay(100);
         if (sendData) {
-          setPhi = phiFromPi;
+          setPhi = currentPhi + phiFromPi;
           setDistance = distanceFromPi;
           if (setPhi != 0) {
             state = ANGLE;
           } else if (setPhi == 0) {
             state = DISTANCE;
           } else {
+            analogWrite(9, 0);
+            analogWrite(10, 0);
             state = IDLE;
           }
         }
         break;
+
       case (ANGLE):
         count1 = wheel1.read();
         count2 = -wheel2.read();
@@ -136,16 +145,19 @@ void loop() {
           PWMR = -150 * 0.95;
         }
 
-        if ((currentPhi > setPhi) && (setDistance != 0)) {
+        if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03) && (setDistance != 0)) {
           state = DISTANCE;
-        } else if (currentPhi > setPhi) {
+        } else if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03)) {
           sendData = true;
           //send the data to the pi
           Serial.println(sendData);
           sendData = false;
-          state = RECEIVE;
+          analogWrite(9, 0);
+          analogWrite(10, 0);
+          state = IDLE;
         }
         break;
+
       case (DISTANCE):
         count1 = wheel1.read();
         count2 = -wheel2.read();
@@ -173,26 +185,35 @@ void loop() {
 
         delay(20);
         if (arucoDetected == false) {
+          analogWrite(9, 0);
+          analogWrite(10, 0);
           state = IDLE;
         } else {
           state = RECEIVE;
         }
         break;
-      case (ILDE):
-        currentPhi = 0;
+
+      case (IDLE):
+        // currentPhi = 0;
         currentR = 0;
-        delay(100);
-        setPhi = 0;
-        setDistance = 0;
-        setDistance = 0;
+        // delay(100);
+        // setPhi = 0;
+        // setDistance = 0;
         analogWrite(9, 0);
         analogWrite(10, 0);
         if (arucoDetected == true) {
           state = RECEIVE;
+          i = 0;
+        } else if (i > 100) {
+          setPhi += PI / 6;
+          setDistance = 0;
+          state = ANGLE;
+          i = 0;
         }
+        ++i;
         break;
     }
-    
+
     if (PWMR >= 0) {
 
       analogWrite(9, PWMR);
@@ -211,18 +232,18 @@ void loop() {
       digitalWrite(8, 1);
     }
 
-    // Serial.print(currentR);
-    // Serial.print("\t");
-    // Serial.print(setDistance);
-    // Serial.print("\t");
-    // //
-    // Serial.print(currentPhi);
-    // Serial.print("\t");
-    // //
-    // Serial.print(setPhi);
-    // Serial.print("\t");
-    // Serial.print(PWML);
-    // Serial.print("\t");
-    // Serial.println(PWMR);
+    Serial.print(currentR);
+    Serial.print("\t");
+    Serial.print(setDistance);
+    Serial.print("\t");
+    //
+    Serial.print(currentPhi);
+    Serial.print("\t");
+    //
+    Serial.print(setPhi);
+    Serial.print("\t");
+    Serial.print(PWML);
+    Serial.print("\t");
+    Serial.println(PWMR);
   }
 }
