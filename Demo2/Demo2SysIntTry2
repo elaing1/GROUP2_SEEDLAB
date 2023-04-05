@@ -1,0 +1,23 @@
+import serial
+import time
+
+ser = serial.Serial('/dev/ttyACM0', 9600)  # Adjust the port if needed; set baud rate to 9600
+time.sleep(2)  # Allow time for serial connection to initialize
+
+def ReadfromArduino():
+    while (ser.in_waiting > 0):
+        try:
+            line = ser.readline().decode('utf-8').rstrip()
+            print("serial output: ", line)
+        except:
+            print("Communication Error")
+
+def send_floats(float1, float2):
+    float1_str = "{:.2f}".format(float1)  # Format the float with 2 decimal places
+    float2_str = "{:.2f}".format(float2)
+    ser.write("<{},{}>".format(float1_str, float2_str).encode())  # Send the formatted floats
+
+while True:
+    send_floats(100, 100)  # Replace these with your float values
+    time.sleep(1)  # Adjust the delay between sending data as needed
+    ReadfromArduino()
