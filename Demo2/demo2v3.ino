@@ -61,7 +61,7 @@ double ePhi = 0;
 double IR = 0;
 double eR = 0;
 
-
+int distFlag = 0;
 
 
 //COmm with PI
@@ -208,13 +208,13 @@ void loop() {
           PWMR = -150 * 0.95;
         }
         // If enconder count is within threshold angle
-        if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03)) {
+        if ((currentPhi >= setPhi - 0.035) && (currentPhi <= setPhi + 0.035)) {
           analogWrite(9, 0);
           analogWrite(10, 0);
 
           //Add Delay
           i += 0.5;
-          if (i < 2000) {
+          if (i < 2500) {
             break;
           }
           i = 0;
@@ -239,7 +239,10 @@ void loop() {
 
       case (DISTANCE):
         serialEvent();
-        setDistance = distanceFromPi + currentR;
+        if (distFlag == 0) {
+          setDistance = distanceFromPi + currentR; 
+          distFlag = 1; 
+        }
 
         count1 = wheel1.read();
         count2 = -wheel2.read();
@@ -272,6 +275,7 @@ void loop() {
           analogWrite(9, 0);
           analogWrite(10, 0);
           setDistance = 0;
+          distFlag = 0;
           state = idle;
         }
 
@@ -314,4 +318,3 @@ void loop() {
 
   }
 }
-
