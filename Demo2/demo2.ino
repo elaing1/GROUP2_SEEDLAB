@@ -3,11 +3,11 @@
 
 //PI controller values
 // 6
-#define kpR 6
+#define kpR 7
 //20
 #define kpPhi 25
 
-#define maxVolts 7.9
+#define maxVolts 7.7
 
 
 DualMC33926MotorShield md;
@@ -54,7 +54,7 @@ double Vright = 0;
 double PWML = 0;
 double PWMR = 0;
 
-int i = 0;
+double i = 0;
 
 double IPhi = 0;
 double ePhi = 0;
@@ -62,7 +62,33 @@ double IR = 0;
 double eR = 0;
 
 
-//Function to spin motors
+
+
+//COmm with PI
+
+String data;
+bool DataRead;
+String strAngle;
+bool arucoDetected = false;
+String strDistance;
+double angle;
+double distance;
+
+#include <Arduino.h>
+
+float float1, float2;
+String inputString = "";
+bool stringComplete = false;
+
+void serialEvent() {                    // This function is called when data is received over the serial port
+  while (Serial.available()) {          // While there is data available
+    char inChar = (char)Serial.read();  // Read the incoming character
+    inputString += inChar;              // Add the character to the input string
+    if (inChar == '>') {                // If the character is a closing angle bracket
+      stringComplete = true;            // Set the string complete flag
+    }
+  }
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -81,6 +107,7 @@ void setup() {
 
   //Start serial monitor
   Serial.begin(9600);
+  inputString.reserve(32);
 
   //initialize motor
   md.init();
@@ -90,35 +117,71 @@ int state = 3;
 const int RECEIVE = 0;
 const int ANGLE = 1;
 const int DISTANCE = 2;
-const int IDLE = 3;
+const int idle = 3;
+
 
 
 // flags to communicate with the pi
-bool arucoDetected = false;
-bool sendData = false;
+
 void loop() {
   // put your main code here, to run repeatedly:
   while (1) {
-    // aruco detected == true
-    switch (state) {
-      case (RECEIVE):
-        currentR = 0;
-        if (sendData) {
-          setPhi = currentPhi + phiFromPi;
-          setDistance = distanceFromPi;
-          if (setPhi != 0) {
-            state = ANGLE;
-          } else if (setPhi == 0) {
-            state = DISTANCE;
-          } else {
-            analogWrite(9, 0);
-            analogWrite(10, 0);
-            state = IDLE;
-          }
+    serialEvent();
+    if (stringComplete) {                                              // If a complete string has been received
+      if (inputString.startsWith("<") && inputString.endsWith(">")) {  // Check if the string is enclosed in angle brackets
+        inputString.remove(0, 1);                                      // Remove the opening angle bracket
+        inputString.remove(inputString.length() - 1);                  // Remove the closing angle bracket
+        int commaIndex = inputString.indexOf(',');                     // Find the position of the comma separating the floats
+
+        if (commaIndex > 0) {                                                // If a comma is found
+          phiFromPi = inputString.substring(0, commaIndex).toFloat();        // Extract the first float
+          distanceFromPi = inputString.substring(commaIndex + 1).toFloat();  // Extract the second float
+          arucoDetected = true;
+          // Use the received float values
+          // Serial.print("Float 1: ");
+          Serial.println(phiFromPi, 2);
+          // Serial.print("Float 2: ");
+          Serial.println(distanceFromPi, 2);
         }
+      }
+      inputString = "";        // Clear the input string
+      stringComplete = false;  // Reset the string complete flag
+    }
+    // aruco detected == true
+
+
+    switch (state) {
+        case (idle):
+        
+        //communication with PI
+        count1 = 0;
+        count2 = 0;
+        
+        // delay(100);
+        // setPhi = 0;
+        // setDistance = 0;
+        analogWrite(9, 0);
+        analogWrite(10, 0);
+
+        //Add Delay
+        i += 0.5;
+        if (i < 1000) {
+            break;
+        }
+        i = 0;
+
+        if (phiFromPi != 0) { //If Not Centered or Detected -> GOTO ANGLE
+          setPhi = phiFromPi * PI / 180 + currentPhi;
+          state = ANGLE;
+        } else if ((phiFromPi == 0) && (distanceFromPi > 0.3)){ //Else if Centered and has a distance -> GOTO DISTANCE 
+          setDistance = distanceFromPi + currentR;
+          state = DISTANCE;        
+        }
+        
         break;
 
       case (ANGLE):
+        //serialEvent();
         count1 = wheel1.read();
         count2 = -wheel2.read();
         currentR = -((double(count2) / 3210) + (double(count1) / 3210)) * PI * radius;
@@ -144,24 +207,44 @@ void loop() {
         } else if (PWMR < -150) {
           PWMR = -150 * 0.95;
         }
-
-        if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03) && (setDistance != 0)) {
-          state = DISTANCE;
-        } else if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03)) {
-          sendData = true;
-          //send the data to the pi
-          Serial.println(sendData);
-          sendData = false;
+        // If enconder count is within threshold angle
+        if ((currentPhi >= setPhi - 0.03) && (currentPhi <= setPhi + 0.03)) {
           analogWrite(9, 0);
           analogWrite(10, 0);
-          state = IDLE;
-        }
+
+          //Add Delay
+          i += 0.5;
+          if (i < 2000) {
+            break;
+          }
+          i = 0;
+
+          serialEvent();
+          if (distanceFromPi > 0.3) { //If Aruco Detected 
+            if (phiFromPi == 0) {  //If Angle has been fixed GOTO DISTANCE
+              count1 = 0;
+              count2 = 0;
+              setDistance = distanceFromPi + currentR;
+              state = DISTANCE;
+            } else {
+              setPhi += phiFromPi * PI / 180; //Else Fix Angle
+            }       
+          } else { //Else if Aruco Detected Find -> STAY IN ANGLE          
+            setPhi += phiFromPi * PI / 180;
+          }
+    
+        } 
+
         break;
 
       case (DISTANCE):
+        serialEvent();
+        setDistance = distanceFromPi + currentR;
+
         count1 = wheel1.read();
         count2 = -wheel2.read();
         currentR = -((double(count2) / 3210) + (double(count1) / 3210)) * PI * radius;
+        currentPhi = radius * (-double(count2) / 3210 * 2 * PI + double(count1) / 3210 * 2 * PI) / ((11.625 / 12.0));
         Vrotational = ((setPhi - currentPhi) * kpPhi);
         Vdistance = ((setDistance - currentR) * kpR);
         Vright = (Vdistance - Vrotational);
@@ -175,44 +258,26 @@ void loop() {
         } else if (PWML < -150) {
           PWML = -150;
         }
-        // 1.12 for both
-        // 0.989
+
         if (PWMR > 150) {
-          PWMR = 150 * 0.95;
+          PWMR = 150 * 1.2;
         } else if (PWMR < -150) {
-          PWMR = -150 * 0.95;
+          PWMR = -150 * 1.2;
         }
 
-        delay(20);
-        if (arucoDetected == false) {
+
+        if (currentR >= setDistance) {
+          PWMR = 0;
+          PWML = 0;
           analogWrite(9, 0);
           analogWrite(10, 0);
-          state = IDLE;
-        } else {
-          state = RECEIVE;
-        }
-        break;
-
-      case (IDLE):
-        // currentPhi = 0;
-        currentR = 0;
-        // delay(100);
-        // setPhi = 0;
-        // setDistance = 0;
-        analogWrite(9, 0);
-        analogWrite(10, 0);
-        if (arucoDetected == true) {
-          state = RECEIVE;
-          i = 0;
-        } else if (i > 100) {
-          setPhi += PI / 6;
           setDistance = 0;
-          state = ANGLE;
-          i = 0;
+          state = idle;
         }
-        ++i;
+
         break;
     }
+
 
     if (PWMR >= 0) {
 
@@ -232,18 +297,21 @@ void loop() {
       digitalWrite(8, 1);
     }
 
-    Serial.print(currentR);
-    Serial.print("\t");
-    Serial.print(setDistance);
-    Serial.print("\t");
-    //
-    Serial.print(currentPhi);
-    Serial.print("\t");
-    //
-    Serial.print(setPhi);
-    Serial.print("\t");
-    Serial.print(PWML);
-    Serial.print("\t");
-    Serial.println(PWMR);
+    //    Serial.print(currentR);
+    //    Serial.print("\t");
+    //    Serial.print(setDistance);
+    //    Serial.print("\t");
+    //    //
+    //    Serial.print(currentPhi);
+    //    Serial.print("\t");
+    //    //
+    //    Serial.print(setPhi);
+    //    Serial.print("\t");
+    //    Serial.print(PWML);
+    //    Serial.print("\t");
+    //    Serial.println(PWMR);
+    // Add Encoder Count Reset
+
   }
 }
+
