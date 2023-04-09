@@ -260,13 +260,14 @@ void loop() {
 
       case (DISTANCE):
         serialEvent();
+
+         
         
         if (distFlag == 0) {
           setDistance = distanceFromPi + currentR; 
           distFlag = 1;      
           }
-          if(currentR > 2){ 
-            Serial.println("i");
+          if(currentR >= 2 && currentR <= 3){ 
               distFlag = 0;
               state= ANGLE;
             }
@@ -298,16 +299,17 @@ void loop() {
           PWMR = -150 * 1.5;
         }
 
-
         if (currentR >= setDistance) {
+          Serial.println("B");
           PWMR = 0;
           PWML = 0;
           analogWrite(9, 0);
           analogWrite(10, 0);
           setDistance = 0;
           distFlag = 0;
-          state = idle;
+          state = halt;
         }
+       
 
         break;
 
