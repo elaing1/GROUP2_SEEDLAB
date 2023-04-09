@@ -62,6 +62,7 @@ double IR = 0;
 double eR = 0;
 
 int distFlag = 0;
+int checkFlag = 0;
 
 
 //COmm with PI
@@ -118,6 +119,7 @@ const int RECEIVE = 0;
 const int ANGLE = 1;
 const int DISTANCE = 2;
 const int idle = 3;
+const int halt = 4;
 
 
 
@@ -177,7 +179,6 @@ void loop() {
           //setPhi = phiFromPi * PI / 180 + currentPhi;
           state = ANGLE;
         } else if ((phiFromPi == 0) && (distanceFromPi > 0.3)){ //Else if Centered and has a distance -> GOTO DISTANCE 
-
           setDistance = distanceFromPi + currentR;
           state = DISTANCE;        
         }
@@ -263,12 +264,12 @@ void loop() {
         if (distFlag == 0) {
           setDistance = distanceFromPi + currentR; 
           distFlag = 1;      
-          } 
-//            else if(distFlag == 1 && distanceFromPi <= 3){ 
-//                      Serial.println("i");
-//                      setDistance = distanceFromPi + currentR;
-//                      distFlag = 2;
-//                    }
+          }
+          if(currentR > 2){ 
+            Serial.println("i");
+              distFlag = 0;
+              state= ANGLE;
+            }
 
         count1 = wheel1.read();
         count2 = -wheel2.read();
@@ -309,6 +310,16 @@ void loop() {
         }
 
         break;
+
+
+      case(halt):
+        PWMR = 0;
+        PWML = 0;
+        analogWrite(9, 0);
+        analogWrite(10, 0);
+        state = halt;
+        break;
+        
     }
 
 
